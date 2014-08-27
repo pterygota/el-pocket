@@ -1,11 +1,9 @@
-;; -*- lexical-binding: t -*-
-;; el-pocket.el -- el-pocket :: emacs -> getpocket.com
+;;; el-pocket.el --- el-pocket :: emacs -> getpocket.com
 ;; Author: Tod Davies <davies.t.o@gmail.com>
 ;; Created: 4 Aug 2014
 ;; Version: 20140804.2311
 ;; Url: http://github.com/pterygota/el-pocket
 ;; Keywords: emacs, pocket, bookmarks
-;; Package-requires: (web)
 
 ;; Installation/Setup/Usage:
 ;; Put this file in your load-path somewhere and require it.
@@ -20,6 +18,7 @@
 ;; (require 'el-pocket)
 ;; (el-pocket-load-auth)
 ;;
+;; -*- lexical-binding: t -*-
 
 (require 'web)
 (require 'json)
@@ -172,7 +171,7 @@
 
 (provide 'el-pocket)
 
-;; end of el-pocket.el
+;;; el-pocket.el ends here
 
 
 
