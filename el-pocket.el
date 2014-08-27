@@ -4,6 +4,7 @@
 ;; Version: 20140804.2311
 ;; Url: http://github.com/pterygota/el-pocket
 ;; Keywords: emacs, pocket, bookmarks
+;; Package-requires: ((web "0.4.3"))
 
 ;; Installation/Setup/Usage:
 ;; Put this file in your load-path somewhere and require it.
