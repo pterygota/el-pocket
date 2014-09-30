@@ -4,7 +4,7 @@
 ;; Version: 20140804.2311
 ;; Url: http://github.com/pterygota/el-pocket
 ;; Keywords: emacs, pocket, bookmarks
-;; Package-requires: ((web "20140827.1225"))
+;; Package-Requires: ((web "20140827.1225"))
 ;; Installation/Setup/Usage
 
 ;; Put this file in your load-path somewhere and require it.
@@ -21,11 +21,6 @@
 ;; (require 'el-pocket)
 ;; (el-pocket-load-auth)
 ;;
-
-(eval-when-compile
-  (require 'web)
-  (require 'json)
-  (require 'cl))
 
 (require 'json)
 (require 'web)
