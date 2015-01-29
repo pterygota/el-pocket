@@ -1,26 +1,32 @@
 ;;; el-pocket.el --- el-pocket :: emacs -> getpocket.com ;; -*- lexical-binding: t -*-
 ;; Author: Tod Davies <davies.t.o@gmail.com>
 ;; Created: 4 Aug 2014
-;; Version: 20140804.2311
+;; Last Updated: 28 Jan 2015
+;; Version: 0.1
 ;; Url: http://github.com/pterygota/el-pocket
 ;; Keywords: emacs, pocket, bookmarks
-;; Package-Requires: ((web "20140827.1225"))
+;; Package-Requires: ((web "0.5.2") (emacs "24"))
 ;; Installation/Setup/Usage
+
+;;; Commentary:
 
 ;; Put this file in your load-path somewhere and require it.
 ;; Or (package-install-file "/path/to/el-pocket.el"), given a 
 ;; connection to marmalade.
 ;; Now do an M-x el-pocket-authorize. The first time you do this
 ;; you will be directed to the oauth/request page, where you can
-;; click on authorize. After authorizing, return to emacs and
-;; M-x el-pocket-authorize again. This time you should get an access
-;; token, and it will be saved to "~/.el-pocket-auth.js".
+;; click on authorize. After authorizing, you may see a message that
+;; makes it seem like it didn't work ... this means it worked!
+;; Now, return to emacs and M-x el-pocket-authorize again. This time
+;; you should get an access token, and it will be saved to
+;; "~/.el-pocket-auth.json".
 ;; Once this is done you should be able to el-pocket-add URLs ...
 ;; Now you can add these lines to your init file for future enuserating:
 ;;
 ;; (require 'el-pocket)
 ;; (el-pocket-load-auth)
-;;
+
+;;; Code:
 
 (require 'json)
 (require 'web)
@@ -35,7 +41,7 @@
 (setq *consumer-key* "30410-da1b34ce81aec5843a2214f4")
 
 ;;access-key and username stored here
-(setq *el-pocket-auth-file* (expand-file-name "~/.el-pocket-auth.js"))
+(setq *el-pocket-auth-file* (expand-file-name "~/.el-pocket-auth.json"))
 
 (defun el-pocket-load-auth ()
   (setq *access-token-and-username*
@@ -71,6 +77,7 @@
 ;; and and done that, this will then get the
 ;; all-important access-token, huzzah!
 (defun el-pocket-get-access-token ()
+  "After authorizing, el-pocket-authorize again to call this and get an access-token."
   (progn
     (let ((post-data (make-hash-table :test 'equal))
 	  (extra-headers (make-hash-table :test 'equal)))
@@ -96,6 +103,7 @@
 ;; one, then send the user to oauth/authorize for
 ;; to authorize this shiz
 (defun el-pocket-get-request-token ()
+  "Request a request token, then direct the user to authorization URL"
   (let ((post-data (make-hash-table :test 'equal))
 	(extra-headers (make-hash-table :test 'equal)))
     (puthash 'consumer_key *consumer-key* post-data)
@@ -117,18 +125,19 @@
      (concat "authorize el-pocket at " *url*
 	     " (copied to clipboard)\n"))))
 
-;; do we have access?
 (defun access-granted-p ()
+  "Do we have access yet?"
   (if *access-token-and-username* t))
 
 (defun access-not-granted ()
   (display-message-or-buffer
-   "M-x el-pocket-authorize to get access to pocket"))
+   "Do an M-x el-pocket-authorize to get access to pocket."))
 
 ;; skeleton function to test getting things from pocket
 ;; response is printed to *Messages*
 ;; TODO make this do useful things
 (defun el-pocket-get ()
+  "Gets things from your pocket."
   (if (access-granted-p)
       (let ((post-data (make-hash-table :test 'equal))
 	    (extra-headers (make-hash-table :test 'equal)))
@@ -150,6 +159,7 @@
 
 ;;oh my gosh
 (defun el-pocket-add (url-to-add)
+  "Add URL-TO-ADD to your pocket."
   (interactive
    (list
     (read-string "el-pocket url: ")))
