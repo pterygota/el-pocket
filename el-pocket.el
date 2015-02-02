@@ -1,4 +1,4 @@
-;;; el-pocket.el --- el-pocket :: emacs -> getpocket.com ;; -*- lexical-binding: t -*-
+;;; el-pocket.el --- Read and write to Pocket (getpocket.com) ;; -*- lexical-binding: t -*-
 ;; Author: Tod Davies <davies.t.o@gmail.com>
 ;; Created: 4 Aug 2014
 ;; Last Updated: 28 Jan 2015
