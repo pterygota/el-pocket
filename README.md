@@ -23,9 +23,9 @@ time you should get an access token, and it will be saved to
 Once this is done you should be able to use `M-x el-pocket-add RET` to
 add URLs.
 
-Reading articles still neeed to be added.  Maybe it could be
-integrated using the Diffbot's
-[Article Extraction API](https://www.diffbot.com/dev/docs/article/)
+Todo: Reading articles, displaying the list of bookmarks, searching, etc.
+Pretty much everything except saving a bookmark, which is all that is 
+implemented currently.
 
 Now you can add these lines to your init file for future use:
 
