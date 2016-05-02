@@ -205,6 +205,11 @@
          :extra-headers extra-headers))
     (el-pocket-access-not-granted)))
 
+(defun el-pocket-add-url (url &optional ignore)
+  "Add URL to pocket."
+  (interactive (browse-url-interactive-arg "URL: "))
+  (el-pocket-add url))
+
 (provide 'el-pocket)
 
 ;;; el-pocket.el ends here
