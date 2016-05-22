@@ -103,11 +103,14 @@
 
 ;; http post helper function
 (defun el-pocket--post (url post-data-alist callback)
+  "Post POST-DATA-ALIST to URL and then call the CALLBACK with data decoded as utf-8"
   (let ((post-data (make-hash-table :test 'equal)))
     (dolist (post-data-pair post-data-alist)
       (puthash (car post-data-pair) (cdr post-data-pair) post-data))
     (web-http-post
      (lambda (con header data)
+       (unless (string= "200" (gethash 'status-code header))
+         (error "error status :%s" (gethash 'status-code header)))
        (let ((data (decode-coding-string data 'utf-8)))
          (message "data received is:header=[%s],data = [%s]" header data)
          (funcall callback con header data)))
@@ -143,11 +146,11 @@
                      (let* ((token (cdr (assoc 'code (json-read-from-string data))))
                             (url (concat "https://getpocket.com/auth/authorize?request_token=" token)))
                        (setq el-pocket-request-token token)
-                       (kill-new url))
-                     (display-message-or-buffer
-                      (concat "authorize el-pocket at " url
-                              " (copied to clipboard)\n"))
-                     (browse-url url)
+                       (kill-new url)
+                       (display-message-or-buffer
+                        (concat "authorize el-pocket at " url
+                                " (copied to clipboard)\n"))
+                       (browse-url url))
                      ;; (el-pocket-authorize)
                      )))
 
