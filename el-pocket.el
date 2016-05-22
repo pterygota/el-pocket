@@ -3,6 +3,7 @@
 ;; Created: 4 Aug 2014
 ;; Last Updated: 28 Jan 2015
 ;; Version: 0.2
+;; Package-Version: 20150202.1528
 ;; Url: http://github.com/pterygota/el-pocket
 ;; Keywords: emacs, pocket, bookmarks
 ;; Package-Requires: ((web "0.5.2") (emacs "24"))
@@ -61,6 +62,12 @@
   "Holds the request token")
 (defvar el-pocket-access-token-and-username nil
   "Holds the current access token")
+(defvar el-pocket-default-extra-headers (let ((extra-headers (make-hash-table :test 'equal)))
+                                          (puthash 'Host "getpocket.com" extra-headers)
+                                          (puthash 'Content-type "application/x-www-form-urlencoded; charset=UTF-8" extra-headers)
+                                          (puthash 'X-Accept "application/json" extra-headers)
+                                          extra-headers)
+  "Default extra headers")
 
 ;;no use hiding this I suppose
 (defcustom el-pocket-consumer-key "30410-da1b34ce81aec5843a2214f4"
@@ -76,25 +83,37 @@
             (json-read-file el-pocket-auth-file))))
 
 (defun el-pocket-save-auth ()
-  (if (file-exists-p el-pocket-auth-file)
-      (delete-file el-pocket-auth-file))
-  (append-to-file (json-encode-alist el-pocket-access-token-and-username) nil el-pocket-auth-file))
+  (with-temp-file el-pocket-auth-file
+    (insert (json-encode-alist el-pocket-access-token-and-username))))
 
 (defun el-pocket-clear-auth ()
-  (setq el-pocket-request-token)
-  (setq el-pocket-access-token-and-username))
+  (setq el-pocket-request-token nil)
+  (setq el-pocket-access-token-and-username nil))
 
 ;; the authorization dance:
 ;; TODO - make a nice interface for this
 ;; TODO - maybe use the oauth or oauth2 package instead?
 (defun el-pocket-authorize ()
   (interactive)
-  (if el-pocket-access-token-and-username t
-    (el-pocket-load-auth))
-  (if el-pocket-access-token-and-username t
-    (if el-pocket-request-token
-        (el-pocket-get-access-token)
-      (el-pocket-get-request-token))))
+  (unless el-pocket-access-token-and-username
+    (unless (el-pocket-load-auth)
+      (if el-pocket-request-token
+          (el-pocket-get-access-token)
+        (el-pocket-get-request-token)))))
+
+;; http post helper function
+(defun el-pocket--post (url post-data-alist callback)
+  (let ((post-data (make-hash-table :test 'equal)))
+    (dolist (post-data-pair post-data-alist)
+      (puthash (car post-data-pair) (cdr post-data-pair) post-data))
+    (web-http-post
+     (lambda (con header data)
+       (let ((data (decode-coding-string data 'utf-8)))
+         (message "data received is:header=[%s],data = [%s]" header data)
+         (funcall callback con header data)))
+     :url url
+     :data post-data
+     :extra-headers el-pocket-default-extra-headers)))
 
 ;; once the request token is a-gotten,
 ;; and you've gone to the oauth/authorize page
@@ -102,56 +121,39 @@
 ;; all-important access-token, huzzah!
 (defun el-pocket-get-access-token ()
   "After authorizing, el-pocket-authorize again to call this and get an access-token."
-  (let ((post-data (make-hash-table :test 'equal))
-        (extra-headers (make-hash-table :test 'equal)))
-    (puthash 'consumer_key el-pocket-consumer-key post-data)
-    (puthash 'code el-pocket-request-token post-data)
-    (puthash 'Host "getpocket.com" extra-headers)
-    (puthash 'Content-type "application/x-www-form-urlencoded; charset=UTF-8" extra-headers)
-    (puthash 'X-Accept "application/json" extra-headers)
-    (web-http-post
-     (lambda (con header data)
-       (setq el-pocket-access-token-and-username
-             (json-read-from-string data))
-       (message "data received is: %s" data)
-       (el-pocket-save-auth))
-     :url el-pocket-oauth-authorize-url
-     :data post-data
-     :extra-headers extra-headers))
-  (sleep-for 1)
-  (display-message-or-buffer
-   "access a-gotten!"))
+  (el-pocket--post el-pocket-oauth-authorize-url
+                   `((consumer_key . ,el-pocket-consumer-key)
+                     (code . ,el-pocket-request-token))
+                   (lambda (con header data)
+                     (setq el-pocket-access-token-and-username
+                           (json-read-from-string data))
+                     (el-pocket-save-auth)
+                     (display-message-or-buffer
+                      "access a-gotten!"))))
 
 ;; we don't have a request token yet, so request
 ;; one, then send the user to oauth/authorize for
 ;; to authorize this shiz
 (defun el-pocket-get-request-token ()
   "Request a request token, then direct the user to authorization URL"
-  (let (url
-        (post-data (make-hash-table :test 'equal))
-        (extra-headers (make-hash-table :test 'equal)))
-    (puthash 'consumer_key el-pocket-consumer-key post-data)
-    (puthash 'redirect_uri "http://www.google.com" post-data)
-    (puthash 'Host "getpocket.com" extra-headers)
-    (puthash 'Content-type "application/x-www-form-urlencoded; charset=UTF-8" extra-headers)
-    (puthash 'X-Accept "application/json" extra-headers)
-    (web-http-post
-     (lambda (con header data)
-       (let ((token (cdr (assoc 'code (json-read-from-string data)))))
-         (setq el-pocket-request-token token)
-         (setq url (concat "https://getpocket.com/auth/authorize?request_token=" el-pocket-request-token))
-         (kill-new url)))
-     :url el-pocket-oauth-request-url
-     :data post-data
-     :extra-headers extra-headers)
-    (sleep-for 1)
-    (display-message-or-buffer
-     (concat "authorize el-pocket at " url
-             " (copied to clipboard)\n"))))
+  (el-pocket--post el-pocket-oauth-request-url
+                   `((consumer_key . ,el-pocket-consumer-key)
+                     (redirect_uri . "http://www.google.com" ))
+                   (lambda (con header data)
+                     (let* ((token (cdr (assoc 'code (json-read-from-string data))))
+                            (url (concat "https://getpocket.com/auth/authorize?request_token=" token)))
+                       (setq el-pocket-request-token token)
+                       (kill-new url))
+                     (display-message-or-buffer
+                      (concat "authorize el-pocket at " url
+                              " (copied to clipboard)\n"))
+                     (browse-url url)
+                     ;; (el-pocket-authorize)
+                     )))
 
 (defun el-pocket-access-granted-p ()
   "Do we have access yet?"
-  (if el-pocket-access-token-and-username t))
+  el-pocket-access-token-and-username)
 
 (defun el-pocket-access-not-granted ()
   (display-message-or-buffer
@@ -163,22 +165,13 @@
 (defun el-pocket-get ()
   "Gets things from your pocket."
   (if (el-pocket-access-granted-p)
-      (let ((post-data (make-hash-table :test 'equal))
-            (extra-headers (make-hash-table :test 'equal)))
-        (puthash 'consumer_key el-pocket-consumer-key post-data)
-        (puthash 'access_token (cdr (assoc 'access_token el-pocket-access-token-and-username)) post-data)
-        (puthash 'count "5" post-data)
-        (puthash 'detailType "simple" post-data)
-        (puthash 'Host "getpocket.com" extra-headers)
-        (puthash 'Content-type "application/x-www-form-urlencoded; charset=UTF-8" extra-headers)
-        (puthash 'X-Accept "application/json" extra-headers)
-        (web-http-post
-         (lambda (con header data)
-           (message "data received is: %s" data)
-           (json-read-from-string data))
-         :url "https://getpocket.com/v3/get"
-         :data post-data
-         :extra-headers extra-headers))
+      (el-pocket--post  "https://getpocket.com/v3/get"
+                        `((consumer_key . ,el-pocket-consumer-key)
+                          (access_token . ,(cdr (assoc 'access_token el-pocket-access-token-and-username)))
+                          (count . "5")
+                          (detailType . "simple"))
+                        (lambda (con header data)
+                          (json-read-from-string data)))
     (el-pocket-access-not-granted)))
 
 ;;oh my gosh
@@ -188,21 +181,12 @@
    (list
     (read-string "el-pocket url: ")))
   (if (el-pocket-access-granted-p)
-      (let ((post-data (make-hash-table :test 'equal))
-            (extra-headers (make-hash-table :test 'equal)))
-        (puthash 'consumer_key el-pocket-consumer-key post-data)
-        (puthash 'access_token (cdr (assoc 'access_token el-pocket-access-token-and-username)) post-data)
-        (puthash 'url url-to-add post-data)
-        (puthash 'Host "getpocket.com" extra-headers)
-        (puthash 'Content-type "application/x-www-form-urlencoded; charset=UTF-8" extra-headers)
-        (puthash 'X-Accept "application/json" extra-headers)
-        (web-http-post
-         (lambda (con header data)
-           (message "data received is: %s" data)
-           (json-read-from-string data))
-         :url "https://getpocket.com/v3/add"
-         :data post-data
-         :extra-headers extra-headers))
+      (el-pocket--post  "https://getpocket.com/v3/add"
+                        `((consumer_key . ,el-pocket-consumer-key)
+                          (access_token . ,(cdr (assoc 'access_token el-pocket-access-token-and-username)))
+                          (url . ,url-to-add))
+                        (lambda (con header data)
+                          (json-read-from-string data)))
     (el-pocket-access-not-granted)))
 
 (provide 'el-pocket)
