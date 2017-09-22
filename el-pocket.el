@@ -7,6 +7,7 @@
 ;; Url: http://github.com/pterygota/el-pocket
 ;; Keywords: emacs, pocket, bookmarks
 ;; Package-Requires: ((web "0.5.2") (emacs "24"))
+;; License: GPL-3+
 ;; Installation/Setup/Usage
 
 ;;; Commentary:
